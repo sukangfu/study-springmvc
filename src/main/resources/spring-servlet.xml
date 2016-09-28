@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/util
+        http://www.springframework.org/schema/util/spring-util.xsd
+        http://www.springframework.org/schema/mvc
+        http://www.springframework.org/schema/mvc/spring-mvc.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:annotation-config />
+    
+    <!-- 处理器，只扫描@Controller，让标注spring注解的类生效 -->
+	<context:component-scan base-package="com.zkn.springmvc.web.controller" use-default-filters="false">
+		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+	</context:component-scan>
+
+	<!-- 定义视图解析器，将视图逻辑名解析为：/views/<viewName>.jsp 的视图对象 -->
+	<!-- p:prefix 相当于 <property name="prefix" value="/views/" /> -->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/pages/"/>
+        <property name="suffix" value=".jsp"/>
+    </bean>
+    
+    <!-- 注入 默认的  HandlerMapping 映射 -->
+ 	<mvc:annotation-driven />
+	
+	<!-- 当请求静态资源时使用默认的 handler，在servlet-mapping没有指定具体映射范围时使用  -->	
+	<!-- <mvc:default-servlet-handler/> -->
+       
+   <!-- =================== 登录拦截器 ============================= -->
+<!--    <mvc:interceptors>
+   		<mvc:interceptor>
+   			<mvc:mapping path="/*"/>
+   			<bean class="com.cn100.diamond.web.interceptor.LoginInterceptor" />
+   		</mvc:interceptor>
+   </mvc:interceptors>  -->
+   <!-- =================== 登录拦截器 end ========================== -->
+
+	<!-- =================== 数据格式化以及数据绑定=================== -->
+    <!--Spring3.1开始的注解 HandlerAdapter -->
+    <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+        <property name="customArgumentResolvers">
+        	<list>
+        		<bean class="com.zkn.spring.web.mvc.method.resolver.FormModelMethodArgumentResolver"/>
+        		<bean class="com.zkn.spring.web.mvc.method.resolver.RequestJsonParamMethodArgumentResolver"/>
+        	</list>
+        </property>
+       <property name="webBindingInitializer" ref="webBindingInitializer"/>
+    </bean>
+    
+    <!-- 注册ConversionService实现和自定义的类型转换器 -->
+<!--    	<bean id="conversionService" class="org.springframework.format.support.FormattingConversionServiceFactoryBean">   
+        <property name="converters">   
+            <list>   
+                <bean class="com.cn100.diamond.utils.spring.converter.StingToDateConverter" />   
+            </list>   
+        </property>   
+    </bean> -->  
+    <!-- 使用默认数据格式化服务，引入Joda-Time依赖支持时间数据格式化 -->
+   	<bean id="conversionService" class="org.springframework.format.support.DefaultFormattingConversionService">   
+    </bean>  
+    
+    <!-- 使用ConfigurableWebBindingInitializer注册conversionService -->  
+ 	<bean id="webBindingInitializer" class="org.springframework.web.bind.support.ConfigurableWebBindingInitializer">  
+	    <property name="conversionService" ref="conversionService"/>  
+	</bean> 
+	<!-- =================== 数据格式化以及数据绑定 end================ -->
+	
+	<!-- =================== 定义注解方法处理器适配器 =================== -->
+	<bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+		<property name="messageConverters" ref="messageConverters" />
+	</bean>
+	<!-- 请求信息转换器列表 -->
+	<util:list id="messageConverters">
+		<bean class="org.springframework.http.converter.BufferedImageHttpMessageConverter" />
+		<bean class="org.springframework.http.converter.ByteArrayHttpMessageConverter" />
+		<bean class="org.springframework.http.converter.StringHttpMessageConverter" />
+		<bean class="org.springframework.http.converter.xml.XmlAwareFormHttpMessageConverter" />
+		
+		<!-- 装配处理XML格式的请求或响应信息的转化器-->
+		<bean class="org.springframework.http.converter.xml.MarshallingHttpMessageConverter" 
+			p:marshaller-ref="xmlMarshaller" p:unmarshaller-ref="xmlMarshaller" />
+		<!-- 装配处理JSON格式的请求或响应信息的转化器 -->
+		<bean class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter" />
+	</util:list>
+	<!-- 声明Marshaller，使用XStream技术 -->
+	<bean id="xmlMarshaller" class="org.springframework.oxm.xstream.XStreamMarshaller">
+		<property name="streamDriver" >
+			<!-- 使用STAX 对XML信息进行处理，STAX占用内存少，速度也很快 -->
+			<bean class="com.thoughtworks.xstream.io.xml.StaxDriver" />
+		</property>
+		<property name="annotatedClasses">
+			<list>
+				<!-- 使用XStream的注解定义XML转换规则，用到XStream的类在此声明 -->
+				<value>com.zkn.springmvc.domain.entity.User</value>
+			</list>
+		</property>
+	</bean>
+	<!-- =================== 定义注解方法处理器适配器 end ================ -->
+		
+	<!-- =================== 文件上传解析器 ============================ -->
+	<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<property name="defaultEncoding" value="UTF-8" />
+		<!-- 最大5M -->
+		<property name="maxUploadSize" value="5242880" /> 
+		<!-- 文件上传临时目录 -->
+		<property name="uploadTempDir" value="data/upload" />
+	</bean>
+	<!-- =================== 文件上传解析器 end ======================== -->
+	
+</beans>      
